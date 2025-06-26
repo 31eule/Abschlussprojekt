@@ -28,6 +28,7 @@ def add_patient_form(json_path):
             st.rerun()
 
     # Deine Eingabefelder bleiben unverändert
+    password = st.text_input("Passwort", type="password", placeholder="Passwort für den neuen Patienten")
     firstname = st.text_input("Vorname")
     lastname = st.text_input("Nachname")
     date_of_birth = st.number_input("Geburtsjahr", min_value=1900, max_value=2100, step=1)
@@ -41,6 +42,9 @@ def add_patient_form(json_path):
             patienten = load_patients(json_path)
             new_patient = {
                 "id": str(uuid.uuid4())[:8],
+                "username": f"{firstname.lower()}.{lastname.lower()}",
+                "role": "Patient",
+                "password": password,
                 "firstname": firstname,
                 "lastname": lastname,
                 "date_of_birth": int(date_of_birth),
@@ -91,16 +95,8 @@ def show_patient_list(patienten, json_path):
             st.success(f"Patient {patient['firstname']} {patient['lastname']} wurde gelöscht.")
             st.rerun()
 
-person_dict = Person.load_person_data()
-person_names = Person.get_person_list(person_dict)
-
-def show_patient_details(patient):
-    st.title(f"🩺 {patient['firstname']} {patient['lastname']}")
-
-    person = Person(patient)
-
-    cols = st.columns([1, 2])  # 1 Teil für Bild, 2 Teile für Daten (etwas mehr Platz rechts)
-
+def show_person_header(person, patient):
+    cols = st.columns([1, 2])
     with cols[0]:
         if patient.get("picture_path") and os.path.exists(patient["picture_path"]):
             st.image(Image.open(patient["picture_path"]), width=200)
@@ -108,7 +104,6 @@ def show_patient_details(patient):
     with cols[1]:
         age = person.calc_age()
         max_hr = person.calc_max_heart_rate()
-
         st.markdown(f"""
         **Geschlecht:** {person.gender}  
         **Geburtsjahr:** {person.date_of_birth}  
@@ -116,189 +111,103 @@ def show_patient_details(patient):
         **Maximale Herzfrequenz:** {max_hr:.1f} bpm
         """)
 
-        # Editable Felder für Größe und Gewicht
-        new_height = st.number_input(
-            "Größe (cm)",
-            min_value=0,
-            value=int(person.height),
-            step=1,
-            key="height_input"
-        )
-
-        new_weight = st.number_input(
-            "Gewicht (kg)",
-            min_value=0.0,
-            value=float(person.weight),
-            step=0.1,
-            format="%.1f",
-            key="weight_input"
-        )
+        new_height = st.number_input("Größe (cm)", min_value=0, value=int(person.height), step=1, key="height_input")
+        new_weight = st.number_input("Gewicht (kg)", min_value=0.0, value=float(person.weight), step=0.1, format="%.1f", key="weight_input")
 
         if st.button("Größe und Gewicht speichern"):
             msg = Person.update_height_weight(person.id, new_height, new_weight)
             st.success(msg)
-            # Aktualisiere Objekt im Speicher
             person.height = new_height
             person.weight = new_weight
             st.rerun()
 
-    if person.ekg_tests:
-        ekg_ids = [ekg["id"] for ekg in person.ekg_tests]
-
-        if ('current_person_id_for_ekg' not in st.session_state or
-            st.session_state.current_person_id_for_ekg != person.id or
-            'selected_ekg_index' not in st.session_state):
-            st.session_state.current_person_id_for_ekg = person.id
-            st.session_state.selected_ekg_index = 0
-
-        selected_index = st.selectbox(
-            "EKG auswählen",
-            options=range(len(ekg_ids)),
-            index=st.session_state.selected_ekg_index,
-            format_func=lambda x: str(x + 1),
-            key="selected_ekg_index"
-        )
-
-        if selected_index != st.session_state.selected_ekg_index:
-            st.session_state.selected_ekg_index = selected_index
-
-        selected_ekg_id = ekg_ids[selected_index]
-        ekg_dict = EKGdata.load_by_id(person.ekg_tests, selected_ekg_id)
-
-        if ekg_dict:
-            ekg = EKGdata(ekg_dict)
-            threshold = 340
-            peaks = ekg.find_peaks(threshold)
-
-            # Initialisiere Sichtbereich
-            if "visible_start" not in st.session_state:
-                st.session_state.visible_start = 0
-            if "visible_end" not in st.session_state:
-                st.session_state.visible_end = 5000
-
-            max_index = len(ekg.df)
-
-            # Zeitbereich in Millisekunden auslesen
-            min_time_ms = int(ekg.df["Zeit in ms"].min())
-            max_time_ms = int(ekg.df["Zeit in ms"].max())
-
-            # Eingabefeld für Startzeit (ms)
-            st.markdown("#### 🕒 Sichtbereich manuell anpassen")
-            manual_time = st.number_input(
-                "Startzeit (in ms):",
-                min_value=min_time_ms,
-                max_value=max_time_ms - 100,
-                value=int(ekg.df["Zeit in ms"].iloc[st.session_state.visible_start]),
-                step=100
-            )
-
-            # Button zur Bestätigung
-            if st.button("🔍 Bereich anzeigen"):
-                closest_idx = (ekg.df["Zeit in ms"] - manual_time).abs().idxmin()
-                st.session_state.visible_start = max(0, closest_idx)
-                st.session_state.visible_end = min(closest_idx + 5000, max_index)
-
-            visible_range = (st.session_state.visible_start, st.session_state.visible_end)
-            # st.markdown(f"**Aktueller Indexbereich:** {visible_range[0]} – {visible_range[1]}")
-            st.markdown(f"**Zeitbereich (ms):** {int(ekg.df['Zeit in ms'].iloc[visible_range[0]])} – {int(ekg.df['Zeit in ms'].iloc[visible_range[1]-1])}")
-
-            # Plot anzeigen
-            fig = ekg.plot_time_series(peaks, visible_range)
-            st.plotly_chart(fig)
-
-            estimated_hr = ekg.estimate_hr(peaks)
-            st.markdown(f"**Geschätzte Herzfrequenz:** {estimated_hr:.1f} bpm")
-
-            st.markdown("### 🧠 Analyse des EKGs:")
-
-            with st.expander("Ergebnisse anzeigen"):
-                if ekg.find_bradykardie():
-                    st.warning("🟡 Bradykardie erkannt (Herzfrequenz < 60 bpm)")
-                elif ekg.find_tachykardie():
-                    st.warning("🔴 Tachykardie erkannt (Herzfrequenz > 100 bpm)")
-                else:
-                    st.success("✅ Normale Herzfrequenz")
-
-                if ekg.find_atrial_fibrillation():
-                    st.warning("🟡 Verdacht auf Vorhofflimmern (hohe RR-Variabilität)")
-
-                st_status = ekg.detect_st_elevation()
-                if st_status == "ST-Hebung":
-                    st.error("🔴 ST-Streckenhebung erkannt – möglicher Myokardinfarkt")
-                elif st_status == "ST-Senkung":
-                    st.warning("🟠 ST-Streckensenkung erkannt")
-                else:
-                    st.success("✅ ST-Strecke im Normalbereich")
-
-                extras = ekg.find_extrasystoles()
-                if extras:
-                    st.warning(f"🟡 {len(extras)} mögliche Extrasystolen erkannt")
-
-                    # ➕ Zeitpunkt in ms extrahieren
-                    extras_times = []
-                    for peak_index, _ in extras:
-                        try:
-                            time = ekg.df["Zeit in ms"].iloc[peak_index]
-                            extras_times.append(time)
-                        except:
-                            continue
-
-                    # ➕ DataFrame für Anzeige
-                    df_extras = pd.DataFrame({"Zeitpunkt (ms)": extras_times})
-                    
-                    # ➕ Nur die ersten 10 Zeilen anzeigen, aber scrollbar
-                    st.markdown("**Zeitpunkte der Extrasystolen:**")
-                    st.dataframe(df_extras.head(10), height=200)
-                else:
-                    st.success("✅ Keine Extrasystolen erkannt")
-
-            st.markdown(f"**EKG-Datei:** {ekg_dict['result_link']}")
-        else:
-            st.warning("Kein EKG mit dieser ID gefunden.")
-    else:
+def show_ekg_analysis(person):
+    if not person.ekg_tests:
         st.warning("Keine EKG-Daten für diese Person vorhanden.")
+        return
 
-    st.markdown("## 📤 Neues EKG hochladen")
+    ekg_ids = [ekg["id"] for ekg in person.ekg_tests]
+    if 'current_person_id_for_ekg' not in st.session_state or st.session_state.current_person_id_for_ekg != person.id:
+        st.session_state.current_person_id_for_ekg = person.id
+        st.session_state.selected_ekg_index = 0
 
-    # Patient muss vorher ausgewählt worden sein
-    selected_patient_id = st.session_state.get("selected_patient_id", None)
-    if selected_patient_id is None:
-        st.warning("Bitte zuerst einen Patienten auswählen.")
+    selected_index = st.selectbox("EKG auswählen", options=range(len(ekg_ids)), index=st.session_state.selected_ekg_index,
+                                  format_func=lambda x: str(x + 1), key="selected_ekg_index")
+
+    selected_ekg_id = ekg_ids[selected_index]
+    ekg_dict = EKGdata.load_by_id(person.ekg_tests, selected_ekg_id)
+
+    if not ekg_dict:
+        st.warning("Kein EKG mit dieser ID gefunden.")
+        return
+
+    ekg = EKGdata(ekg_dict)
+    peaks = ekg.find_peaks(340)
+
+    # Sichtbereich initialisieren
+    st.session_state.visible_start = st.session_state.get("visible_start", 0)
+    st.session_state.visible_end = st.session_state.get("visible_end", 5000)
+    max_index = len(ekg.df)
+
+    # Bereich manuell setzen
+    st.markdown("#### 🕒 Sichtbereich manuell anpassen")
+    min_time = int(ekg.df["Zeit in ms"].min())
+    max_time = int(ekg.df["Zeit in ms"].max())
+
+    manual_time = st.number_input("Startzeit (in ms):", min_value=min_time, max_value=max_time - 100,
+                                  value=int(ekg.df["Zeit in ms"].iloc[st.session_state.visible_start]), step=100)
+
+    if st.button("🔍 Bereich anzeigen"):
+        closest_idx = (ekg.df["Zeit in ms"] - manual_time).abs().idxmin()
+        st.session_state.visible_start = max(0, closest_idx)
+        st.session_state.visible_end = min(closest_idx + 5000, max_index)
+
+    visible_range = (st.session_state.visible_start, st.session_state.visible_end)
+    st.markdown(f"**Zeitbereich (ms):** {int(ekg.df['Zeit in ms'].iloc[visible_range[0]])} – {int(ekg.df['Zeit in ms'].iloc[visible_range[1]-1])}")
+
+    st.plotly_chart(ekg.plot_time_series(peaks, visible_range))
+    st.markdown(f"**Geschätzte Herzfrequenz:** {ekg.estimate_hr(peaks):.1f} bpm")
+
+    with st.expander("🧠 Analyse des EKGs"):
+        analyze_ekg_signals(ekg, peaks)
+
+    st.markdown(f"**EKG-Datei:** {ekg_dict['result_link']}")
+
+def analyze_ekg_signals(ekg, peaks):
+    if ekg.find_bradykardie():
+        st.warning("🟡 Bradykardie erkannt (Herzfrequenz < 60 bpm)")
+    elif ekg.find_tachykardie():
+        st.warning("🔴 Tachykardie erkannt (Herzfrequenz > 100 bpm)")
     else:
-        uploaded_file = st.file_uploader("Wähle eine EKG CSV-Datei aus", type=["txt"])
+        st.success("✅ Normale Herzfrequenz")
 
-        if uploaded_file is not None:
-            try:
-                df = pd.read_csv(uploaded_file)
-                st.success("✅ Datei erfolgreich geladen.")
-                st.dataframe(df.head(10))
+    if ekg.find_atrial_fibrillation():
+        st.warning("🟡 Verdacht auf Vorhofflimmern")
 
-                # Eingabe optionales EKG-Datum (voreingestellt auf heute)
-                ekg_date = st.date_input("Datum des EKGs", value=datetime.today())
+    st_status = ekg.detect_st_elevation()
+    if st_status == "ST-Hebung":
+        st.error("🔴 ST-Hebung erkannt – möglicher Infarkt")
+    elif st_status == "ST-Senkung":
+        st.warning("🟠 ST-Senkung erkannt")
+    else:
+        st.success("✅ ST-Strecke im Normalbereich")
 
-                if st.button("EKG speichern"):
-                    # Person-Instanz erstellen (optional, je nach Struktur deiner App)
-                    person = Person.load_by_id(selected_patient_id, Person.load_person_data())
-                    if person:
-                        result_message = Person.add_ekg(selected_patient_id, uploaded_file, ekg_date)
-                        st.success(result_message)
-                        st.rerun()
-                    else:
-                        st.error("❌ Patient nicht gefunden.")
+    extras = ekg.find_extrasystoles()
+    if extras:
+        times = [ekg.df["Zeit in ms"].iloc[i] for i, _ in extras if i < len(ekg.df)]
+        df_extras = pd.DataFrame({"Zeitpunkt (ms)": times})
+        st.warning(f"🟡 {len(times)} mögliche Extrasystolen erkannt")
+        st.dataframe(df_extras.head(10), height=200)
+    else:
+        st.success("✅ Keine Extrasystolen erkannt")
 
-            except Exception as e:
-                st.error(f"Fehler beim Lesen der Datei: {e}")
-
+def show_medication_section(patient):
     st.markdown("## 💊 Medikation")
 
-    # Sicherstellen, dass der Ordner existiert
     med_folder = "data/medikation"
     os.makedirs(med_folder, exist_ok=True)
-
-    # Pfad zur Medikamenten-CSV-Datei
     med_file = os.path.join(med_folder, f"medikation_{patient['id']}.csv")
 
-    # Bestehende Datei laden oder neue leere Tabelle erzeugen
     try:
         med_df = pd.read_csv(med_file)
     except FileNotFoundError:
@@ -315,7 +224,7 @@ def show_patient_details(patient):
         new_entry = {
             "Medikament": medikament,
             "Zeitpunkt": zeitpunkt.strftime("%H:%M"),
-            "Bemerkung": bemerkung
+            "Bemerkung": bemerkung if bemerkung.strip() else "-"
         }
         med_df = pd.concat([med_df, pd.DataFrame([new_entry])], ignore_index=True)
         med_df.to_csv(med_file, index=False)
@@ -324,10 +233,29 @@ def show_patient_details(patient):
 
     if not med_df.empty:
         st.markdown("### 📋 Bisherige Einträge:")
-        st.dataframe(med_df, use_container_width=True)
+        for idx, row in med_df.iterrows():
+            bemerkung = row["Bemerkung"] if pd.notna(row["Bemerkung"]) and row["Bemerkung"].strip() else "-"
+            cols = st.columns([3, 2, 3, 1])
+            cols[0].markdown(f"**{row['Medikament']}**")
+            cols[1].markdown(row["Zeitpunkt"])
+            cols[2].markdown(bemerkung)
+            if cols[3].button("🗑️", key=f"del_{idx}"):
+                med_df = med_df.drop(index=idx).reset_index(drop=True)
+                med_df.to_csv(med_file, index=False)
+                st.success("❌ Eintrag gelöscht")
+                st.rerun()
     else:
         st.info("Noch keine Medikation erfasst.")
+
+def show_patient_details(patient):
+    st.title(f"🩺 {patient['firstname']} {patient['lastname']}")
+    person = Person(patient)
+
+    show_person_header(person, patient)
+    show_ekg_analysis(person)
+    show_medication_section(patient)
 
     if st.button("⬅ Zurück zur Liste"):
         st.session_state.page = "list"
         st.rerun()
+
