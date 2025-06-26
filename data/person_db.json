@@ -1,57 +1,76 @@
-[{
-	"id": "001",
-	"username": "julian.huber",
-	"role": "patient",
-	"password": "1" , 
-	"date_of_birth": 1989,
-	"firstname": "Julian",
-	"lastname": "Huber",
-    "picture_path" : "data/pictures/tb.jpg",
-	"gender" : "male",
-	"ekg_tests": [{
-		"id": 1,
-		"date": "10.2.2023",
-		"result_link": "data/ekg_data/01_Ruhe.txt"}, {
-		"id": 2,
-		"date": "11.3.2023",
-		"result_link": "data/ekg_data/04_Belastung.txt"
-	}]
-}, {
-	"id": "002",
-	"username": "yannic.heyer",
-	"role": "patient",
-	"password": "2" ,
-	"date_of_birth": 1967,
-	"firstname": "Yannic",
-	"lastname": "Heyer",
-    "picture_path" : "data/pictures/js.jpg",
-	"gender" : "male",
-	"ekg_tests": [{
-		"id": 3,
-		"date": "10.2.2023",
-		"result_link": "data/ekg_data/02_Ruhe.txt"
-	}]
-}, {
-	"id": "003",
-	"username": "yunus.schmirander",
-	"role": "patient",
-	"password": "3" ,
-	"date_of_birth": 1973,
-	"firstname": "Yunus",
-	"lastname": "Schmirander",
-	"gender" : "male",
-    "picture_path" : "data/pictures/bl.jpg",
-	"ekg_tests": [{
-		"id": 4,
-		"date": "11.3.2023",
-		"result_link": "data/ekg_data/03_Ruhe.txt"
-	}]
-}, {
-	"id": "010",
-    "username": "dr_schmidt",
-	"role": "arzt",
-    "password": "a",
-	"date_of_birth": 1980,
-	"firstname": "peter", 
-	"lastname": "schmidt"
-}]
+[
+    {
+        "id": "001",
+        "username": "julian.huber",
+        "role": "patient",
+        "password": "1",
+        "date_of_birth": 1989,
+        "firstname": "Julian",
+        "lastname": "Huber",
+        "picture_path": "data/pictures/tb.jpg",
+        "gender": "male",
+        "height": 180,
+        "weight": 75.0,
+        "ekg_tests": [
+            {
+                "id": 1,
+                "date": "10.2.2023",
+                "result_link": "data/ekg_data/01_Ruhe.txt"
+            },
+            {
+                "id": 2,
+                "date": "11.3.2023",
+                "result_link": "data/ekg_data/04_Belastung.txt"
+            }
+        ]
+    },
+    {
+        "id": "002",
+        "username": "yannic.heyer",
+        "role": "patient",
+        "password": "2",
+        "date_of_birth": 1967,
+        "firstname": "Yannic",
+        "lastname": "Heyer",
+        "picture_path": "data/pictures/js.jpg",
+        "gender": "male",
+        "height": 175,
+        "weight": 80,
+        "ekg_tests": [
+            {
+                "id": 3,
+                "date": "10.2.2023",
+                "result_link": "data/ekg_data/02_Ruhe.txt"
+            }
+        ]
+    },
+    {
+        "id": "003",
+        "username": "yunus.schmirander",
+        "role": "patient",
+        "password": "3",
+        "date_of_birth": 1973,
+        "firstname": "Yunus",
+        "lastname": "Schmirander",
+        "picture_path": "data/pictures/bl.jpg",
+        "gender": "male",
+        "height": 185,
+        "weight": 90,
+        "ekg_tests": [
+            {
+                "id": 4,
+                "date": "11.3.2023",
+                "result_link": "data/ekg_data/03_Ruhe.txt"
+            }
+        ]
+    },
+    {
+        "id": "010",
+        "username": "dr_schmidt",
+        "role": "arzt",
+        "password": "a",
+        "date_of_birth": 1980,
+        "firstname": "peter",
+        "lastname": "schmidt"
+    }
+]
