@@ -1,31 +1,35 @@
+import os
 import json
-from datetime import date
+import uuid
+import shutil
+from datetime import datetime, date
 
 class Person:
     
     @staticmethod
     def load_person_data():
-        """A Function that knows where te person Database is and returns a Dictionary with the Persons"""
-        file = open("data/person_db.json")
-        person_data = json.load(file)
-        return person_data
+        """Lädt die Personendaten aus der JSON-Datei"""
+        with open("data/person_db.json", "r", encoding="utf-8") as file:
+            return json.load(file)
+
+    @staticmethod
+    def save_person_data(data):
+        """Speichert die Personendaten zurück in die JSON-Datei"""
+        with open("data/person_db.json", "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4, ensure_ascii=False)
 
     @staticmethod
     def get_person_list(person_data):
-        """A Function that takes the persons-dictionary and returns a list auf all person names"""
+        """Gibt eine Liste aller Personennamen zurück"""
         list_of_names = []
-
         for eintrag in person_data:
             list_of_names.append(eintrag["lastname"] + ", " +  eintrag["firstname"])
         return list_of_names
     
     @staticmethod
     def find_person_data_by_name(suchstring):
-        """ Eine Funktion der Nachname, Vorname als ein String übergeben wird
-        und die die Person als Dictionary zurück gibt"""
-
+        """Findet und gibt die Personendaten anhand von Nachname, Vorname zurück"""
         person_data = Person.load_person_data()
-        #print(suchstring)
         if suchstring == "None":
             return {}
 
@@ -34,10 +38,7 @@ class Person:
         nachname = two_names[0]
 
         for eintrag in person_data:
-            print(eintrag)
             if (eintrag["lastname"] == nachname and eintrag["firstname"] == vorname):
-                print()
-
                 return eintrag
         else:
             return {}
@@ -49,6 +50,8 @@ class Person:
         self.date_of_birth = person_dict["date_of_birth"]
         self.picture_path = person_dict.get("picture_path", "data/pictures/none.jpg")
         self.gender = person_dict.get("gender", "unknown")
+        self.height = person_dict["height"]  # in cm
+        self.weight = person_dict["weight"]  # in kg
         self.ekg_tests = person_dict.get("ekg_tests", [])
 
     @staticmethod
@@ -69,7 +72,78 @@ class Person:
         else:
             max_heart = 226 - age
         return max_heart
+    
+    @staticmethod
+    def update_height_weight(patient_id, new_height, new_weight):
+        try:
+            # Personendaten laden
+            person_list = Person.load_person_data()
 
+            # Patient suchen und Werte aktualisieren
+            updated = False
+            for person in person_list:
+                if str(person["id"]) == str(patient_id):
+                    person["height"] = new_height
+                    person["weight"] = new_weight
+                    updated = True
+                    break
+
+            if not updated:
+                return "❌ Patient nicht gefunden."
+
+            # Daten speichern
+            Person.save_person_data(person_list)
+            return "✅ Größe und Gewicht wurden erfolgreich aktualisiert."
+
+        except Exception as e:
+            return f"❌ Fehler beim Aktualisieren der Daten: {e}"
+
+
+    @staticmethod
+    def add_ekg(patient_id, uploaded_file, ekg_date):
+        try:
+            # JSON laden
+            with open("data/person_db.json", "r", encoding="utf-8") as f:
+                person_list = json.load(f)
+
+            # Passende Person finden
+            for person in person_list:
+                if str(person["id"]) == str(patient_id):
+                    ekg_tests = person.get("ekg_tests", [])
+
+                    # Neue eindeutige Test-ID
+                    new_id = max((test["id"] for test in ekg_tests), default=0) + 1
+
+                    # Zielordner erstellen, falls nicht vorhanden
+                    folder = "data/ekg_data"
+                    os.makedirs(folder, exist_ok=True)
+
+                    # Dateiname und Pfad definieren
+                    base_filename = f"{patient_id}_{new_id}.txt"
+                    file_path = os.path.join(folder, base_filename)
+
+                    # Datei speichern
+                    with open(file_path, "wb") as out_file:
+                        out_file.write(uploaded_file.getbuffer())
+
+                    # Neues EKG zur Liste hinzufügen
+                    person.setdefault("ekg_tests", []).append({
+                        "id": new_id,
+                        "date": ekg_date.strftime("%d.%m.%Y"),
+                        "result_link": file_path.replace("\\", "/")
+                    })
+
+                    # JSON speichern
+                    with open("data/person_db.json", "w", encoding="utf-8") as f:
+                        json.dump(person_list, f, indent=4)
+
+                    return f"✅ EKG gespeichert unter {file_path}"
+
+            return "❌ Patient nicht gefunden"
+
+        except Exception as e:
+            return f"❌ Fehler beim Speichern der EKG-Datei: {e}"
+        
 if __name__ == "__main__":
     #print("This is a module with some functions to read the person data")
     persons = Person.load_person_data()

@@ -171,11 +171,13 @@ class EKGdata:
         return extrasystoles
 
     
-    def plot_time_series(self, peaks, visible_range): # Visible Range soll im main.py eingegeben werden und dort umgesetzt werden
+    def plot_time_series(self, peaks, visible_range):
         start, end = visible_range
-        self.df = pd.read_csv(self.data, sep='\t', header=None, names=['Messwerte in mV','Zeit in ms',])
-        # Erstellte einen Line Plot, der ersten 2000 Werte mit der Zeit aus der x-Achse
+        self.df = pd.read_csv(self.data, sep='\t', header=None, names=['Messwerte in mV', 'Zeit in ms'])
+
         fig = go.Figure()
+
+        # Basislinie
         fig.add_trace(go.Scatter(
             x=self.df["Zeit in ms"].iloc[start:end],
             y=self.df["Messwerte in mV"].iloc[start:end],
@@ -184,14 +186,17 @@ class EKGdata:
             line=dict(color='blue', width=2)
         ))
 
+        # Peaks markieren
         peak_indices = [i for i in peaks if start <= i < end]
         fig.add_trace(go.Scatter(
             x=self.df["Zeit in ms"].iloc[peak_indices],
             y=self.df["Messwerte in mV"].iloc[peak_indices],
             mode='markers',
             name='Peaks',
-            marker=dict(color='red', size=8, symbol='circle')
+            marker=dict(color='red', size=6, symbol='circle')
         ))
+
+        # Extrasystolen hervorheben
         extras = self.find_extrasystoles()
         visible_extras = [peak for peak in extras if start <= peak[0] < end]
         fig.add_trace(go.Scatter(
@@ -202,8 +207,24 @@ class EKGdata:
             marker=dict(color='orange', size=10, symbol='x')
         ))
 
+        # ST-Hebung oder -Senkung markieren
+        st_status = self.detect_st_elevation()
+        if st_status in ["ST-Hebung", "ST-Senkung"]:
+            # Wir markieren einfach alle Peaks im sichtbaren Bereich mit einer anderen Form
+            color = "magenta" if st_status == "ST-Hebung" else "green"
+            shape = "triangle-up" if st_status == "ST-Hebung" else "triangle-down"
+
+            st_peaks = [i for i in peaks if start <= i < end]
+            fig.add_trace(go.Scatter(
+                x=self.df["Zeit in ms"].iloc[st_peaks],
+                y=self.df["Messwerte in mV"].iloc[st_peaks],
+                mode='markers',
+                name=st_status,
+                marker=dict(color=color, size=10, symbol=shape)
+            ))
+
         fig.update_layout(
-            title='EKG Zeitreihe mit Peaks',
+            title='📈 EKG Zeitreihe mit Auffälligkeiten',
             xaxis_title='Zeit in ms',
             yaxis_title='Messwerte in mV',
             template='plotly_white'
@@ -216,9 +237,9 @@ if __name__ == "__main__":
     file = open("data/person_db.json")
     person_data = json.load(file)
     ekg_dict = person_data[0]["ekg_tests"][1]
-    #print(ekg_dict)
+    # print(ekg_dict)
     ekg = EKGdata(ekg_dict)
-    #print(ekg.df.head())
+    print(ekg.df.head())
     id = 1
     ekg_list = [person_data[0]["ekg_tests"][0], person_data[0]["ekg_tests"][1], person_data[1]["ekg_tests"][0], person_data[2]["ekg_tests"][0]]
     #print(EKGdata.load_by_id(ekg_list, id))
