@@ -3,7 +3,7 @@
         "id": "001",
         "username": "julian.huber",
         "role": "patient",
-        "password": "1" , 
+        "password": "1",
         "date_of_birth": 1989,
         "firstname": "Julian",
         "lastname": "Huber",
@@ -28,7 +28,7 @@
         "id": "002",
         "username": "yannic.heyer",
         "role": "patient",
-        "password": "2" ,
+        "password": "2",
         "date_of_birth": 1967,
         "firstname": "Yannic",
         "lastname": "Heyer",
@@ -48,12 +48,12 @@
         "id": "003",
         "username": "yunus.schmirander",
         "role": "patient",
-        "password": "3" ,
+        "password": "3",
         "date_of_birth": 1973,
         "firstname": "Yunus",
         "lastname": "Schmirander",
-        "gender": "male",
         "picture_path": "data/pictures/bl.jpg",
+        "gender": "male",
         "height": 185,
         "weight": 90,
         "ekg_tests": [
@@ -72,5 +72,5 @@
 	"date_of_birth": 1980,
 	"firstname": "peter", 
 	"lastname": "schmidt"
-}
+    }
 ]
