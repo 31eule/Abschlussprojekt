@@ -1,8 +1,8 @@
 import streamlit as st
 import os
 import arzt_data
-from person import Person
-from ekgdata import EKGdata
+from login import logout_button
+
 
 def app():
     if "page" not in st.session_state:
