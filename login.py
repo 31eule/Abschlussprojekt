@@ -9,7 +9,7 @@ def logout_button():
     with col2:
         if st.button("🚪 Logout"):
             st.session_state.clear()
-            st.session_state["logged_in"] = False   # ⬅ Zurück zur Login-Seite
+            st.session_state["logged_in"] = False
             st.rerun()
 
         if st.session_state.get("show_logout_message", False):
@@ -42,27 +42,32 @@ if "show_logout_message" not in st.session_state:
 
 
 def load_person_data():
-    with open("data/person_db.json") as file:
-        person_data = json.load(file)
-    return person_data
+    try:
+        with open("data/person_db.json", "r", encoding="utf-8") as f1, open("data/arzt.json", "r", encoding="utf-8") as f2:
+            person_data_1 = json.load(f1)
+            person_data_2 = json.load(f2)
+        return person_data_1 + person_data_2  # Zusammenführen zu einer Liste
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        st.error(f"Fehler beim Laden der Benutzerdaten: {e}")
+        return []
+
 
 def login():
     st.title("Login für Arzt / Patient")
 
-    role_choice = st.selectbox("Rolle wählen", ["arzt", "patient"])
+    role_choice = st.selectbox("Rolle wählen", ["Bitte wählen", "Arzt", "Patient"])
     username = st.text_input("Benutzername")
     password = st.text_input("Passwort", type="password")
 
     if st.button("Einloggen"):
         users = load_person_data()
-        # Benutzer suchen
         user = next((u for u in users if u.get("username") == username), None)
 
         if user and user.get("password") == password and user.get("role") == role_choice:
             st.session_state["logged_in"] = True
             st.session_state["role"] = user["role"]
             st.session_state["username"] = username
-            st.session_state["user_data"] = user  # Optional: ganze Person speichern
+            st.session_state["user_data"] = user
             st.success(f"Eingeloggt als {user['role']}")
             st.rerun()
         else:

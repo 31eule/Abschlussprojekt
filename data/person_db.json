@@ -2,7 +2,7 @@
     {
         "id": "001",
         "username": "julian.huber",
-        "role": "patient",
+        "role": "Patient",
         "password": "1",
         "date_of_birth": 1989,
         "firstname": "Julian",
@@ -27,7 +27,7 @@
     {
         "id": "002",
         "username": "yannic.heyer",
-        "role": "patient",
+        "role": "Patient",
         "password": "2",
         "date_of_birth": 1967,
         "firstname": "Yannic",
@@ -47,7 +47,7 @@
     {
         "id": "003",
         "username": "yunus.schmirander",
-        "role": "patient",
+        "role": "Patient",
         "password": "3",
         "date_of_birth": 1973,
         "firstname": "Yunus",
@@ -63,14 +63,5 @@
                 "result_link": "data/ekg_data/03_Ruhe.txt"
             }
         ]
-    },
-    {
-	"id": "010",
-    "username": "dr_schmidt",
-	"role": "arzt",
-    "password": "a",
-	"date_of_birth": 1980,
-	"firstname": "peter", 
-	"lastname": "schmidt"
     }
 ]

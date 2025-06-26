@@ -1,0 +1,11 @@
+[
+    {
+	"id": "010",
+    "username": "dr_schmidt",
+	"role": "Arzt",
+    "password": "a",
+	"date_of_birth": 1980,
+	"firstname": "peter", 
+	"lastname": "schmidt"
+    }
+]
