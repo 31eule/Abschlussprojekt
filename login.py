@@ -114,12 +114,13 @@ def login():
         user = next((u for u in users if u.get("username") == username), None)
 
         if user and user.get("password") == password and user.get("role") == role_choice:
-            st.session_state["logged_in"] = True
-            st.session_state["role"] = user["role"]
-            st.session_state["username"] = username
-            st.session_state["user_data"] = user
-            st.success(f"Eingeloggt als {user['role']}")
-            st.rerun()
+         st.session_state["logged_in"] = True
+         st.session_state["role"] = user["role"]
+         st.session_state["username"] = username
+         st.session_state["user_data"] = user
+         st.session_state["show_logout_message"] = False  # ✅ Meldung zurücksetzen
+         st.success(f"Eingeloggt als {user['role']}")
+         st.rerun()
         else:
             st.error("Login fehlgeschlagen – prüfe Benutzername, Passwort und Rolle.")
 
