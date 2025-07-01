@@ -179,7 +179,7 @@ class EKGdata:
 
         # Basislinie
         fig.add_trace(go.Scatter(
-            x=self.df["Zeit in ms"].iloc[start:end],
+            x=self.df["Zeit in ms"].iloc[start:end] / 60000,  # Zeit in Minuten
             y=self.df["Messwerte in mV"].iloc[start:end],
             mode='lines',
             name='EKG Daten',
@@ -189,7 +189,7 @@ class EKGdata:
         # Peaks markieren
         peak_indices = [i for i in peaks if start <= i < end]
         fig.add_trace(go.Scatter(
-            x=self.df["Zeit in ms"].iloc[peak_indices],
+            x=self.df["Zeit in ms"].iloc[peak_indices] / 60000,  # Zeit in Minuten
             y=self.df["Messwerte in mV"].iloc[peak_indices],
             mode='markers',
             name='Peaks',
@@ -200,7 +200,7 @@ class EKGdata:
         extras = self.find_extrasystoles()
         visible_extras = [peak for peak in extras if start <= peak[0] < end]
         fig.add_trace(go.Scatter(
-            x=[self.df["Zeit in ms"].iloc[peak[0]] for peak in visible_extras],
+            x=[self.df["Zeit in ms"].iloc[peak[0]] / 60000 for peak in visible_extras],  # Zeit in Minuten
             y=[self.df["Messwerte in mV"].iloc[peak[0]] for peak in visible_extras],
             mode='markers',
             name='Extrasystolen',
@@ -210,13 +210,12 @@ class EKGdata:
         # ST-Hebung oder -Senkung markieren
         st_status = self.detect_st_elevation()
         if st_status in ["ST-Hebung", "ST-Senkung"]:
-            # Wir markieren einfach alle Peaks im sichtbaren Bereich mit einer anderen Form
             color = "magenta" if st_status == "ST-Hebung" else "green"
             shape = "triangle-up" if st_status == "ST-Hebung" else "triangle-down"
 
             st_peaks = [i for i in peaks if start <= i < end]
             fig.add_trace(go.Scatter(
-                x=self.df["Zeit in ms"].iloc[st_peaks],
+                x=self.df["Zeit in ms"].iloc[st_peaks] / 60000,  # Zeit in Minuten
                 y=self.df["Messwerte in mV"].iloc[st_peaks],
                 mode='markers',
                 name=st_status,
@@ -225,12 +224,143 @@ class EKGdata:
 
         fig.update_layout(
             title='📈 EKG Zeitreihe mit Auffälligkeiten',
-            xaxis_title='Zeit in ms',
+            xaxis_title='Zeit in Minuten',  # Achsentitel anpassen
             yaxis_title='Messwerte in mV',
             template='plotly_white'
         )
         return fig
     
+    disease_descriptions = {
+            "Bradykardie": """
+            **Bradykardie (niedrige Herzfrequenz)**  
+            Ihr Herz schlägt langsamer als 60 Mal pro Minute.  
+            Mögliche Folgen: Müdigkeit, Schwindel, Ohnmacht.  
+            Bitte ärztlich abklären lassen.
+            """,
+
+            "Tachykardie": """
+            **Tachykardie (hohe Herzfrequenz)**  
+            Ihr Herz schlägt schneller als 100 Mal pro Minute.  
+            Mögliche Folgen: Herzrasen, Atemnot, erhöhter Herzinfarkt-Risiko.  
+            Ärztliche Untersuchung empfohlen.
+            """,
+
+            "Vorhofflimmern": """
+            **Vorhofflimmern**  
+            Unregelmäßiger Herzschlag, erhöhtes Risiko für Schlaganfälle.  
+            Symptome können Herzrasen, Müdigkeit oder Schwindel sein.  
+            Bitte zeitnah ärztliche Behandlung suchen.
+            """,
+
+            "ST-Hebung": """
+            **ST-Streckenhebung**  
+            Kann auf einen akuten Herzinfarkt hinweisen.  
+            Sofort medizinische Hilfe aufsuchen!
+            """,
+
+            "ST-Senkung": """
+            **ST-Streckensenkung**  
+            Kann auf Durchblutungsstörungen des Herzens hinweisen.  
+            Ärztlichen Rat einholen.
+            """,
+
+            "Extrasystolen": """
+            **Extrasystolen (zusätzliche Herzschläge)**  
+            Meist harmlos, können Herzrasen oder Unwohlsein verursachen.  
+            Bei häufigerem Auftreten ärztlich abklären lassen.
+            """
+        }
+
+    def get_disease_descriptions_and_recommendations(self):
+        descriptions = []
+        
+        if self.find_bradykardie():
+            descriptions.append({
+                "title": "Bradykardie",
+                "description": (
+                    "Bradykardie bedeutet eine zu niedrige Herzfrequenz (< 60 bpm). "
+                    "Das kann zu Schwindel oder Müdigkeit führen und sollte ärztlich kontrolliert werden."
+                ),
+                "recommendations": (
+                    "- **Sport:** Leichte bis moderate Ausdaueraktivität, keine Überanstrengung.\n"
+                    "- **Ernährung:** Ausgewogene Kost mit ausreichend Flüssigkeit, Salzzufuhr ggf. anpassen."
+                )
+            })
+        
+        if self.find_tachykardie():
+            descriptions.append({
+                "title": "Tachykardie",
+                "description": (
+                    "Tachykardie bedeutet eine zu hohe Herzfrequenz (> 100 bpm). "
+                    "Dies kann das Herz belasten und erfordert ärztliche Abklärung."
+                ),
+                "recommendations": (
+                    "- **Sport:** Vermeide intensive Belastungen bis zur Abklärung.\n"
+                    "- **Ernährung:** Reduziere Koffein und stimulierende Substanzen."
+                )
+            })
+        
+        if self.find_atrial_fibrillation():
+            descriptions.append({
+                "title": "Vorhofflimmern (Atrial Fibrillation)",
+                "description": (
+                    "Vorhofflimmern ist ein unregelmäßiger Herzschlag mit Risiko für Schlaganfälle. "
+                    "Bitte ärztliche Behandlung suchen."
+                ),
+                "recommendations": (
+                    "- **Sport:** Moderate Bewegung zur Förderung der Herzgesundheit.\n"
+                    "- **Ernährung:** Herzgesunde Ernährung (z.B. mediterrane Kost), Alkohol reduzieren."
+                )
+            })
+        
+        st_status = self.detect_st_elevation()
+        if st_status == "ST-Hebung":
+            descriptions.append({
+                "title": "ST-Streckenhebung",
+                "description": (
+                    "ST-Streckenhebung kann auf einen Herzinfarkt hinweisen und ist ein Notfall."
+                ),
+                "recommendations": (
+                    "- **Sport & Ernährung:** Sofortige ärztliche Behandlung erforderlich, keine sportlichen Aktivitäten."
+                )
+            })
+        elif st_status == "ST-Senkung":
+            descriptions.append({
+                "title": "ST-Streckensenkung",
+                "description": (
+                    "ST-Streckensenkung kann ein Warnzeichen für Herzerkrankungen sein."
+                ),
+                "recommendations": (
+                    "- **Sport:** Kontrollierte Bewegung nach Rücksprache mit Arzt.\n"
+                    "- **Ernährung:** Herzgesunde Kost, Blutdruck und Cholesterin kontrollieren."
+                )
+            })
+
+        if self.find_extrasystoles():
+            descriptions.append({
+                    "title": "Extrasystolen",
+                    "description": (
+                        "Extrasystolen sind zusätzliche Herzschläge, die oft harmlos sind, "
+                        "aber bei Beschwerden ärztlich abgeklärt werden sollten."
+                    ),
+                    "recommendations": (
+                        "- **Sport:** Leichte bis moderate Bewegung, Stress vermeiden.\n"
+                        "- **Ernährung:** Vermeide Koffein und andere Stimulanzien, ausreichend Flüssigkeit."
+                    )
+                })
+
+            # Falls keine Auffälligkeiten erkannt wurden
+        if len(descriptions) == 0:
+            descriptions.append({
+                "title": "Keine Auffälligkeiten",
+                "description": "Ihr EKG zeigt keine krankhaften Befunde.",
+                "recommendations": (
+                    "- **Sport:** Mindestens 150 Minuten moderate Ausdaueraktivität pro Woche (z.B. Gehen, Radfahren).\n"
+                    "- **Ernährung:** Ausgewogene Ernährung mit viel Obst, Gemüse, Vollkornprodukten und wenig Fett."
+                )
+            })
+
+        return descriptions
 
 if __name__ == "__main__":
     #print("This is a module with some functions to read the EKG data")

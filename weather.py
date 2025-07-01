@@ -21,8 +21,19 @@ def weather_app():
             # "Push-artige" Toast-Nachricht bei Regen
             if "rain" in weather or "regen" in weather:
                 st.toast("⛈️ Achtung: Es regnet in deiner Stadt!", icon="⚠️")
+            elif "snow" in weather or "schnee" in weather:
+                st.toast("❄️ Achtung: Es schneit in deiner Stadt!", icon="⚠️")
+            elif "fog" in weather or "nebel" in weather:
+                st.toast("🌫️ Achtung: Es ist neblig in deiner Stadt!", icon="⚠️")
             else:
-                st.toast("☀️ Kein Regen – alles gut!", icon="✅")
+                st.toast("🌤️ Das Wetter sieht gut aus!", icon="✅")
+
+            if temp < 0:
+                st.toast("🥶 Achtung: Es ist sehr kalt in deiner Stadt! Es kann zur Glätte führen", icon="⚠️")
+            elif temp > 30:
+                st.toast("🌡️ Achtung: Es ist sehr heiß in deiner Stadt! Achte auf ausreichend Flüssigkeit", icon="⚠️")
+            else:
+                st.toast("🌡️ Das Wetter ist angenehm.", icon="✅")
 
         else:
             st.error("Stadt nicht gefunden oder API-Problem.")

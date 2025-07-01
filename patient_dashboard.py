@@ -16,5 +16,8 @@ def app():
 
     # Patienten-Dashboard anzeigen (aus patient_data.py)
     patient_data.show_patient_details(patient)
+    
+    if st.session_state.get("logged_in"):
+        logout_button()
 
-    logout_button(alignment="bottom-left")
+

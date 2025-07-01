@@ -29,5 +29,6 @@ def app():
     elif st.session_state.page == "add":
         arzt_data.add_patient_form(json_path)
 
-    logout_button(alignment="bottom-right")
-    
+    if st.session_state.get("logged_in"):
+        logout_button()
+

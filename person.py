@@ -1,8 +1,8 @@
 import os
 import json
-import uuid
-import shutil
-from datetime import datetime, date
+import pandas as pd
+import streamlit as st
+from datetime import datetime, date, timedelta
 
 class Person:
     
@@ -143,7 +143,68 @@ class Person:
 
         except Exception as e:
             return f"❌ Fehler beim Speichern der EKG-Datei: {e}"
-        
+
+    @staticmethod    
+    def next_medication_time(times):
+        now = datetime.now()
+        min_diff = timedelta(days=1)
+        next_time_str = None
+
+        for t in times:
+            try:
+                med_time = datetime.strptime(t.strip(), "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+            except ValueError:
+                continue
+            
+            if med_time < now:
+                med_time += timedelta(days=1)
+
+            diff = med_time - now
+            if diff < min_diff:
+                min_diff = diff
+                next_time_str = t.strip()
+
+        return next_time_str, int(min_diff.total_seconds() // 60)
+    
+    @staticmethod
+    def get_next_medication_times(patient):
+        med_file = f"data/medikation/medikation_{patient['id']}.csv"
+        if not os.path.exists(med_file):
+            return []
+
+        try:
+            df_med = pd.read_csv(med_file)
+        except Exception:
+            return []
+
+        # Zeiten aller Medikamente gruppieren
+        med_times = {}
+        for _, row in df_med.iterrows():
+            med = row['Medikament']
+            zeit = row['Zeitpunkt']
+            if med not in med_times:
+                med_times[med] = []
+            med_times[med].append(zeit)
+
+        notifications = []
+        for med, times in med_times.items():
+            next_time, minutes_left = Person.next_medication_time(times)
+            if next_time is not None:
+                notifications.append((med, next_time, minutes_left))
+
+        return notifications
+    
+    @staticmethod
+    def check_medication_notifications(next_med_times):
+        notifications = []
+        for med, time_str, minutes_left in next_med_times:
+            if 0 < minutes_left <= 10:
+                notifications.append(f"⚠️ Einnahme von **{med}** in etwa {minutes_left} Minuten (um {time_str})")
+        return notifications
+
+            
 if __name__ == "__main__":
     #print("This is a module with some functions to read the person data")
     persons = Person.load_person_data()

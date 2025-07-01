@@ -35,7 +35,40 @@ def show_patient_details(patient):
             **Maximale Herzfrequenz:** {max_hr:.1f} bpm
             """)
 
+                # 💊 Medikation laden
+        med_file = f"data/medikation/medikation_{patient['id']}.csv"
+        if os.path.exists(med_file):
+            st.markdown("### 💊 Aktuelle Medikation")
+            try:
+                df_med = pd.read_csv(med_file, sep=",")
+                df_med.fillna("-", inplace=True)
+                st.dataframe(df_med, use_container_width=True)
+
+                # Nächste Einnahmezeit anzeigen
+                next_med_times = []
+                for idx, row in df_med.iterrows():
+                    if "Zeitpunkt" in df_med.columns and row["Zeitpunkt"] != "-":
+                        times = row["Zeitpunkt"].split(",")
+                        next_time, minutes_left = Person.next_medication_time(times)
+                        next_med_times.append((row["Medikament"], next_time, minutes_left))
+
+                if next_med_times:
+                    st.markdown("### 🕒 Nächste Medikamenteneinnahmen")
+                    for med, time_str, minutes_left in next_med_times:
+                        st.info(f"🕒 Nächste Einnahme von **{med}** um {time_str} ({minutes_left} Minuten verbleibend)")
+
+                        Person.check_medication_notifications(next_med_times)
+                else:
+                    st.info("Keine bevorstehenden Einnahmezeiten gefunden.")
+                    
+            except Exception as e:
+                st.error(f"Fehler beim Laden der Medikation: {e}")
+        else:
+            st.info("Keine Medikationsdaten für diesen Patienten gefunden.")
+
+
         if person.ekg_tests:
+            st.markdown("### 📈 EKG-Daten")
             ekg_ids = [ekg["id"] for ekg in person.ekg_tests]
 
             if ('current_person_id_for_ekg' not in st.session_state or
@@ -138,21 +171,33 @@ def show_patient_details(patient):
                 st.warning("Kein EKG mit dieser ID gefunden.")
         else:
             st.warning("Keine EKG-Daten für diese Person vorhanden.")
-
-        # 💊 Medikation laden
-        med_file = f"data/medikation/medikation_{person.id}.csv"
-        if os.path.exists(med_file):
-            st.markdown("### 💊 Aktuelle Medikation")
-            try:
-                df_med = pd.read_csv(med_file, sep=",")
-                df_med.fillna("-", inplace=True)
-                st.dataframe(df_med, use_container_width=True)
-            except Exception as e:
-                st.error(f"Fehler beim Laden der Medikation: {e}")
-        else:
-            st.info("Keine Medikationsdaten für diesen Patienten gefunden.")
-
+                
     # Rechte Spalte: Wetter-Widget dauerhaft sichtbar
     with right_col:
         with st.container():
+            next_med_times = Person.get_next_medication_times(patient)
+            if not next_med_times:
+                next_med_times = []
+
+            notifications = Person.check_medication_notifications(next_med_times)
+
+            for note in notifications:
+                st.warning(note)
+
+        with st.container():
             weather_app()
+
+        st.write("")
+
+        st.markdown("### 🏥 Erkannte Krankheiten und ihre Bedeutung")
+
+        disease_info = ekg.get_disease_descriptions_and_recommendations()
+
+        if not disease_info:
+            st.success("✅ Keine Auffälligkeiten erkannt.")
+        else:
+            for item in disease_info:
+                with st.expander(item["title"]):
+                    st.markdown(item["description"])
+                    st.markdown("**Empfehlungen:**")
+                    st.markdown(item["recommendations"])

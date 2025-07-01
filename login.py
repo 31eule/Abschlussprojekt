@@ -2,23 +2,33 @@ import streamlit as st
 import json
 import os
 
-def logout_button(alignment="right", show_message=True):
+import streamlit as st
+
+def logout_button(show_message=True):
+    query_params = st.query_params 
     """
-    Zeigt einen Logout-Button in der gewünschten Position.
-    
-    :param alignment: "left", "center", "right", "bottom-right"
-    :param show_message: Ob eine Logout-Meldung nach Logout angezeigt wird
+    Zeigt einen fest positionierten Logout-Button unten rechts, wenn der Benutzer eingeloggt ist.
     """
 
-    # Floating Position: Unten rechts
-    if alignment == "bottom-right":
+    # Logout-Handling zuerst prüfen
+    if st.query_params.get("logout") == "true":
+        st.session_state.clear()
+        st.session_state["logged_in"] = False
+        st.session_state["show_logout_message"] = show_message
+
+        # URL zurücksetzen – logout=true entfernen
+        query_params.clear()
+        st.rerun()
+
+    if st.session_state.get("logged_in", False):
+        # Logout-Button anzeigen
         st.markdown("""
             <style>
                 .logout-fixed {
                     position: fixed;
                     bottom: 20px;
                     right: 20px;
-                    z-index: 1000;
+                    z-index: 9999;
                 }
                 .logout-fixed button {
                     background-color: #e74c3c;
@@ -31,37 +41,12 @@ def logout_button(alignment="right", show_message=True):
                 }
             </style>
             <div class="logout-fixed">
-                <form action="?logout=true" method="post">
+                <form action="" method="get">
+                    <input type="hidden" name="logout" value="true" />
                     <button type="submit">🚪 Logout</button>
                 </form>
             </div>
         """, unsafe_allow_html=True)
-
-        # Abfangen des "Logout" via Query-Param
-        if st.query_params.get("logout") == "true":
-            st.session_state.clear()
-            st.session_state["logged_in"] = False
-            st.session_state["show_logout_message"] = show_message
-            st.rerun()
-
-    else:
-        # Leichte vertikale Verschiebung
-        st.markdown("<div style='margin-top: -30px;'></div>", unsafe_allow_html=True)
-
-        # Flexible Spaltenaufteilung je nach Ausrichtung
-        if alignment == "right":
-            cols = st.columns([6, 1])
-        elif alignment == "center":
-            cols = st.columns([4, 1, 4])
-        else:  # "left"
-            cols = st.columns([1, 6])
-
-        with cols[1]:
-            if st.button("🚪 Logout"):
-                st.session_state.clear()
-                st.session_state["logged_in"] = False
-                st.session_state["show_logout_message"] = show_message
-                st.rerun()
 
     # Optional: Logout-Meldung anzeigen
     if st.session_state.get("show_logout_message", False):
