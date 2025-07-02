@@ -9,7 +9,7 @@ def app():
     if "selected_patient_id" not in st.session_state:
         st.session_state.selected_patient_id = None
 
-    json_path = os.path.join("data", "person_db.json")
+    json_path = os.path.join("data", "person_db_encrypted.bin")  # <-- Pfad zur verschlüsselten Datei
 
     patienten = arzt_data.load_patients(json_path)
 

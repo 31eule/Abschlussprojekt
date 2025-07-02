@@ -6,6 +6,10 @@ import pandas as pd
 from ekgdata import EKGdata
 from person import Person
 from weather import weather_app
+import encryption as enc
+
+def load_patients(json_path):
+    return enc.load_encrypted_json(json_path)
 
 def show_patient_header(patient):
     st.title(f"🩺 {patient['firstname']} {patient['lastname']}")
@@ -28,11 +32,13 @@ def show_patient_info(person, patient):
         """)
 
         uploaded_file = st.file_uploader(
-            "📷 Neues Bild hochladen", 
-            type=["png", "jpg", "jpeg"], 
+            "📷 Neues Bild hochladen",
+            type=["png", "jpg", "jpeg"],
             key=f"upload_patient_image_{patient['id']}"
         )
-        if uploaded_file is not None:
+
+        # Neu: Lade-Flag prüfen
+        if uploaded_file is not None and not st.session_state.get(f"image_uploaded_{patient['id']}", False):
             image_folder = "data/pictures"
             os.makedirs(image_folder, exist_ok=True)
             new_path = os.path.join(image_folder, f"{patient['id']}.jpg")
@@ -40,20 +46,29 @@ def show_patient_info(person, patient):
             image = Image.open(uploaded_file).convert("RGB")
             image.save(new_path)
 
-            # Patientendaten aktualisieren und speichern
-            with open("data/person_db.json", "r+", encoding="utf-8") as f:
-                patients = json.load(f)
-                for p in patients:
-                    if p["id"] == patient["id"]:
-                        p["picture_path"] = new_path
-                        patient["picture_path"] = new_path  # WICHTIG: patient-Objekt aktuell halten
-                        break
-                f.seek(0)
-                json.dump(patients, f, indent=4, ensure_ascii=False)
-                f.truncate()
+            try:
+                patients = enc.load_encrypted_json("data/person_db_encrypted.bin")
+            except FileNotFoundError:
+                patients = []
+
+            for p in patients:
+                if p["id"] == patient["id"]:
+                    p["picture_path"] = new_path
+                    break
+            else:
+                patients.append(patient)
+
+            enc.save_encrypted_json("data/person_db_encrypted.bin", patients)
 
             st.success("✅ Bild dauerhaft ersetzt.")
+
+            # Lade-Flag setzen, damit st.rerun nur einmal ausgelöst wird
+            st.session_state[f"image_uploaded_{patient['id']}"] = True
             st.rerun()
+
+        # Lade-Flag nach Neuladen zurücksetzen, damit weitere Uploads möglich sind
+        if st.session_state.get(f"image_uploaded_{patient['id']}", False):
+            st.session_state[f"image_uploaded_{patient['id']}"] = False
 
 def show_medication(patient):
     med_file = f"data/medikation/medikation_{patient['id']}.csv"
@@ -120,23 +135,32 @@ def show_ekg_data(person):
             max_index = len(ekg.df)
             min_time_ms = int(ekg.df["Zeit in ms"].min())
             max_time_ms = int(ekg.df["Zeit in ms"].max())
+            min_time_min = min_time_ms // 60000
+            max_time_min = max_time_ms // 60000
 
+            # Sichtbereich in Minuten statt ms
             st.markdown("#### 🕒 Sichtbereich manuell anpassen")
-            manual_time = st.number_input(
-                "Startzeit (in ms):",
-                min_value=min_time_ms,
-                max_value=max_time_ms - 100,
-                value=int(ekg.df["Zeit in ms"].iloc[st.session_state.visible_start]),
-                step=100
+            current_start_min = int(ekg.df["Zeit in ms"].iloc[st.session_state.visible_start] // 60000)
+            manual_time_min = st.number_input(
+                "Startzeit (in Minuten):",
+                min_value=min_time_min,
+                max_value=max_time_min - 1,
+                value=current_start_min,
+                step=1
             )
 
             if st.button("🔍 Bereich anzeigen"):
-                closest_idx = (ekg.df["Zeit in ms"] - manual_time).abs().idxmin()
+                manual_time_ms = manual_time_min * 60000
+                closest_idx = (ekg.df["Zeit in ms"] - manual_time_ms).abs().idxmin()
                 st.session_state.visible_start = max(0, closest_idx)
                 st.session_state.visible_end = min(closest_idx + 5000, max_index)
 
             visible_range = (st.session_state.visible_start, st.session_state.visible_end)
-            st.markdown(f"**Zeitbereich (ms):** {int(ekg.df['Zeit in ms'].iloc[visible_range[0]])} – {int(ekg.df['Zeit in ms'].iloc[visible_range[1]-1])}")
+            start_ms = int(ekg.df['Zeit in ms'].iloc[visible_range[0]])
+            end_ms = int(ekg.df['Zeit in ms'].iloc[visible_range[1]-1])
+            start_min = start_ms / 60000
+            end_min = end_ms / 60000
+            st.markdown(f"**Zeitbereich:** {start_min:.2f} – {end_min:.2f} Minuten")
 
             fig = ekg.plot_time_series(peaks, visible_range)
             st.plotly_chart(fig)

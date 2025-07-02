@@ -1,8 +1,7 @@
 import streamlit as st
 import json
-import os
+from encryption import load_encrypted_json
 
-import streamlit as st
 
 def logout_button(show_message=True):
     query_params = st.query_params 
@@ -76,15 +75,24 @@ def logout_button(show_message=True):
 if "show_logout_message" not in st.session_state:
     st.session_state["show_logout_message"] = False
 
-def load_person_data():
+def load_all_users():
+    patients = []
+    doctors = []
+
+    # Patienten verschlüsselt laden
     try:
-        with open("data/person_db.json", "r", encoding="utf-8") as f1, open("data/arzt.json", "r", encoding="utf-8") as f2:
-            person_data_1 = json.load(f1)
-            person_data_2 = json.load(f2)
-        return person_data_1 + person_data_2  # Zusammenführen zu einer Liste
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        st.error(f"Fehler beim Laden der Benutzerdaten: {e}")
-        return []
+        patients = load_encrypted_json("data/person_db_encrypted.bin")
+    except Exception as e:
+        st.warning(f"Patientendaten konnten nicht geladen werden: {e}")
+
+    # Ärzte unverschlüsselt laden
+    try:
+        with open("data/arzt.json", "r", encoding="utf-8") as f:
+            doctors = json.load(f)
+    except Exception as e:
+        st.warning(f"Arztdaten konnten nicht geladen werden: {e}")
+
+    return patients + doctors
 
 
 def login():
@@ -95,20 +103,20 @@ def login():
     password = st.text_input("Passwort", type="password")
 
     if st.button("Einloggen"):
-        users = load_person_data()
+        users = load_all_users()
         user = next((u for u in users if u.get("username") == username), None)
 
         if user and user.get("password") == password and user.get("role") == role_choice:
-         st.session_state["logged_in"] = True
-         st.session_state["role"] = user["role"]
-         st.session_state["username"] = username
-         st.session_state["user_data"] = user
-         st.session_state["show_logout_message"] = False  # ✅ Meldung zurücksetzen
-         st.success(f"Eingeloggt als {user['role']}")
-         st.rerun()
+            st.session_state["logged_in"] = True
+            st.session_state["role"] = user["role"]
+            st.session_state["username"] = username
+            st.session_state["user_data"] = user
+            st.session_state["show_logout_message"] = False
+            st.success(f"Eingeloggt als {user['role']}")
+            st.rerun()
         else:
             st.error("Login fehlgeschlagen – prüfe Benutzername, Passwort und Rolle.")
 
-if __name__ == "__main__": 
-    persons = load_person_data()
-    print(persons)
+# if __name__ == "__main__": 
+#     persons = load_person_data()
+#     print(persons)
