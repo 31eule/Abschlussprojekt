@@ -2,20 +2,25 @@ import os
 import json
 import pandas as pd
 from datetime import datetime, date, timedelta
+from encryption import encrypt_data, decrypt_data
 
 class Person:
     
     @staticmethod
     def load_person_data():
-        """Lädt die Personendaten aus der JSON-Datei"""
-        with open("data/person_db.json", "r", encoding="utf-8") as file:
-            return json.load(file)
+        """Lädt die Personendaten aus der verschlüsselten BIN-Datei"""
+        with open("data/person_db_encrypted.bin", "rb") as file:
+            encrypted = file.read()
+        decrypted = decrypt_data(encrypted)
+        return json.loads(decrypted)
 
     @staticmethod
     def save_person_data(data):
-        """Speichert die Personendaten zurück in die JSON-Datei"""
-        with open("data/person_db.json", "w", encoding="utf-8") as file:
-            json.dump(data, file, indent=4, ensure_ascii=False)
+        """Speichert die Personendaten verschlüsselt in die BIN-Datei"""
+        json_str = json.dumps(data, indent=4, ensure_ascii=False)
+        encrypted = encrypt_data(json_str)
+        with open("data/person_db_encrypted.bin", "wb") as file:
+            file.write(encrypted)
 
     @staticmethod
     def get_person_list(person_data):
@@ -101,9 +106,8 @@ class Person:
     @staticmethod
     def add_ekg(patient_id, uploaded_file, ekg_date):
         try:
-            # JSON laden
-            with open("data/person_db.json", "r", encoding="utf-8") as f:
-                person_list = json.load(f)
+            # Verschlüsselte Personendaten laden
+            person_list = Person.load_person_data()
 
             # Passende Person finden
             for person in person_list:
@@ -132,9 +136,8 @@ class Person:
                         "result_link": file_path.replace("\\", "/")
                     })
 
-                    # JSON speichern
-                    with open("data/person_db.json", "w", encoding="utf-8") as f:
-                        json.dump(person_list, f, indent=4)
+                    # Verschlüsselte Personendaten speichern
+                    Person.save_person_data(person_list)
 
                     return f"✅ EKG gespeichert unter {file_path}"
 

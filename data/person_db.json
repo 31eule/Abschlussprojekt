@@ -9,7 +9,7 @@
         "lastname": "Huber",
         "picture_path": "data/pictures/tb.jpg",
         "gender": "male",
-        "height": 180,
+        "height": 183,
         "weight": 75.0,
         "ekg_tests": [
             {

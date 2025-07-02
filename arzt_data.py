@@ -161,10 +161,25 @@ def show_person_header(person, patient):
         new_weight = st.number_input("Gewicht (kg)", min_value=0.0, value=float(person.weight), step=0.1, format="%.1f", key="weight_input")
 
         if st.button("Größe und Gewicht speichern"):
-            msg = Person.update_height_weight(person.id, new_height, new_weight)
-            st.success(msg)
-            person.height = new_height
-            person.weight = new_weight
+            # 1. Patienten laden
+            patienten = load_patients(json_path)
+
+            # 2. Patientenliste aktualisieren
+            for p in patienten:
+                if p["id"] == person.id:
+                    p["height"] = int(new_height)
+                    p["weight"] = float(new_weight)
+                    break
+
+            # 3. Patientenliste speichern
+            save_patients(json_path, patienten)
+
+            # 4. Session-State updaten (für UI und weiter Verarbeitung)
+            st.session_state["patienten"] = patienten
+            person.height = int(new_height)
+            person.weight = float(new_weight)
+
+            st.success("Größe und Gewicht wurden gespeichert.")
             st.rerun()
 
 def show_ekg_analysis(person):
@@ -173,12 +188,22 @@ def show_ekg_analysis(person):
         return
 
     ekg_ids = [ekg["id"] for ekg in person.ekg_tests]
-    if 'current_person_id_for_ekg' not in st.session_state or st.session_state.current_person_id_for_ekg != person.id:
+    # Initialisiere den Index, falls er noch nicht existiert oder Patient gewechselt wurde
+    if (
+        'current_person_id_for_ekg' not in st.session_state
+        or st.session_state.current_person_id_for_ekg != person.id
+        or 'selected_ekg_index' not in st.session_state
+    ):
         st.session_state.current_person_id_for_ekg = person.id
         st.session_state.selected_ekg_index = 0
 
-    selected_index = st.selectbox("EKG auswählen", options=range(len(ekg_ids)), index=st.session_state.selected_ekg_index,
-                                  format_func=lambda x: str(x + 1), key="selected_ekg_index")
+    selected_index = st.selectbox(
+        "EKG auswählen",
+        options=range(len(ekg_ids)),
+        index=st.session_state.selected_ekg_index,
+        format_func=lambda x: str(x + 1),
+        key="selected_ekg_index"
+    )
 
     selected_ekg_id = ekg_ids[selected_index]
     ekg_dict = EKGdata.load_by_id(person.ekg_tests, selected_ekg_id)
