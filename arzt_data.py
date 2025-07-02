@@ -1,5 +1,4 @@
 import streamlit as st
-import json
 import os
 import uuid
 from PIL import Image
@@ -7,14 +6,15 @@ import pandas as pd
 from ekgdata import EKGdata
 from person import Person
 from datetime import datetime
+from encryption import load_encrypted_json, save_encrypted_json
+
+json_path = "data/person_db_encrypted.bin"
 
 def load_patients(json_path):
-    with open(json_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_encrypted_json(json_path)
 
 def save_patients(json_path, patienten):
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(patienten, f, indent=4, ensure_ascii=False)
+    save_encrypted_json(json_path, patienten)
 
 def add_patient_form(json_path):
     col1, col2 = st.columns([9, 1])
@@ -27,7 +27,6 @@ def add_patient_form(json_path):
             st.session_state.page = "list"
             st.rerun()
 
-    # Deine Eingabefelder bleiben unverändert
     password = st.text_input("Passwort", type="password", placeholder="Passwort für den neuen Patienten")
     firstname = st.text_input("Vorname")
     lastname = st.text_input("Nachname")
@@ -39,9 +38,9 @@ def add_patient_form(json_path):
 
     if st.button("Hinzufügen"):
         if firstname and lastname:
+            # Patientenliste laden (aktuellste Daten)
             patienten = load_patients(json_path)
 
-            # Neues Bild speichern, falls hochgeladen
             image_path = ""
             if uploaded_file is not None:
                 image_folder = "data/patient_pictures"
@@ -66,7 +65,13 @@ def add_patient_form(json_path):
             }
 
             patienten.append(new_patient)
+
+            # Patientenliste speichern
             save_patients(json_path, patienten)
+
+            # Patientenliste direkt neu laden und in Session speichern für frische Daten
+            st.session_state["patienten"] = load_patients(json_path)
+
             st.success(f"Patient {firstname} {lastname} wurde hinzugefügt!")
             st.rerun()
         else:
@@ -99,12 +104,43 @@ def show_patient_list(patienten, json_path):
             st.session_state.page = "details"
             st.rerun()
 
-        if cols[4].button("Löschen", key=f"delete_{patient['id']}"):
-            # Patienten entfernen und speichern
-            patienten = [p for p in patienten if p["id"] != patient["id"]]
-            save_patients(json_path, patienten)
-            st.success(f"Patient {patient['firstname']} {patient['lastname']} wurde gelöscht.")
-            st.rerun()
+        confirm_key = f"confirm_delete_{patient['id']}"
+
+        if st.session_state.get(confirm_key):
+            st.warning(f"Willst du Patient {patient['firstname']} {patient['lastname']} wirklich löschen?")
+            yes = cols[4].button("Ja, löschen", key=f"yes_delete_{patient['id']}")
+            no = cols[4].button("Nein", key=f"no_delete_{patient['id']}")
+
+            if yes:
+                neue_patienten = [p for p in patienten if p["id"] != patient["id"]]
+                save_patients(json_path, neue_patienten)
+
+                # Nach Löschen auch die Session aktualisieren
+                st.session_state["patienten"] = load_patients(json_path)
+
+                st.success(f"Patient {patient['firstname']} {patient['lastname']} wurde gelöscht.")
+                st.session_state.pop(confirm_key)
+                st.rerun()
+
+            if no:
+                st.session_state.pop(confirm_key)
+                st.rerun()
+
+        else:
+            if cols[4].button("Löschen", key=f"delete_{patient['id']}"):
+                st.session_state[confirm_key] = True
+                st.rerun()
+
+# Beispiel wie du initial die Patienten aus Session-State oder Datei holst
+if "patienten" not in st.session_state:
+    json_path = "data/person_db_encrypted.bin"  # oder dein tatsächlicher Pfad
+    st.session_state["patienten"] = load_patients(json_path)
+
+# In deinem Hauptprogramm dann z.B. so aufrufen:
+if st.session_state.get("page", "list") == "list":
+    show_patient_list(st.session_state["patienten"], json_path)
+elif st.session_state["page"] == "add":
+    add_patient_form(json_path)
 
 def show_person_header(person, patient):
     cols = st.columns([1, 2])
@@ -160,21 +196,36 @@ def show_ekg_analysis(person):
     st.session_state.visible_end = st.session_state.get("visible_end", 5000)
     max_index = len(ekg.df)
 
-    # Bereich manuell setzen
+    # Bereich manuell setzen (in Minuten)
     st.markdown("#### 🕒 Sichtbereich manuell anpassen")
-    min_time = int(ekg.df["Zeit in ms"].min())
-    max_time = int(ekg.df["Zeit in ms"].max())
+    min_time_ms = int(ekg.df["Zeit in ms"].min())
+    max_time_ms = int(ekg.df["Zeit in ms"].max())
+    min_time_min = min_time_ms // 60000
+    max_time_min = max_time_ms // 60000
 
-    manual_time = st.number_input("Startzeit (in ms):", min_value=min_time, max_value=max_time - 100,
-                                  value=int(ekg.df["Zeit in ms"].iloc[st.session_state.visible_start]), step=100)
+    # Aktueller Startzeitpunkt in Minuten
+    current_start_min = int(ekg.df["Zeit in ms"].iloc[st.session_state.visible_start] // 60000)
+
+    manual_time_min = st.number_input(
+        "Startzeit (in Minuten):",
+        min_value=min_time_min,
+        max_value=max_time_min - 1,
+        value=current_start_min,
+        step=1
+    )
 
     if st.button("🔍 Bereich anzeigen"):
-        closest_idx = (ekg.df["Zeit in ms"] - manual_time).abs().idxmin()
+        manual_time_ms = manual_time_min * 60000
+        closest_idx = (ekg.df["Zeit in ms"] - manual_time_ms).abs().idxmin()
         st.session_state.visible_start = max(0, closest_idx)
         st.session_state.visible_end = min(closest_idx + 5000, max_index)
 
     visible_range = (st.session_state.visible_start, st.session_state.visible_end)
-    st.markdown(f"**Zeitbereich (ms):** {int(ekg.df['Zeit in ms'].iloc[visible_range[0]])} – {int(ekg.df['Zeit in ms'].iloc[visible_range[1]-1])}")
+    start_ms = int(ekg.df['Zeit in ms'].iloc[visible_range[0]])
+    end_ms = int(ekg.df['Zeit in ms'].iloc[visible_range[1]-1])
+    start_min = start_ms / 60000
+    end_min = end_ms / 60000
+    st.markdown(f"**Zeitbereich:** {start_min:.2f} – {end_min:.2f} Minuten")
 
     st.plotly_chart(ekg.plot_time_series(peaks, visible_range))
     st.markdown(f"**Geschätzte Herzfrequenz:** {ekg.estimate_hr(peaks):.1f} bpm")
