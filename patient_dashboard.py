@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 from login import logout_button
 import patient_data
 

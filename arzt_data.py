@@ -5,7 +5,6 @@ from PIL import Image
 import pandas as pd
 from ekgdata import EKGdata
 from person import Person
-from datetime import datetime
 from encryption import load_encrypted_json, save_encrypted_json
 
 json_path = "data/person_db_encrypted.bin"

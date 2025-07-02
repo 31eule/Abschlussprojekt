@@ -1,7 +1,6 @@
 import json
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default = "browser"
@@ -350,7 +349,7 @@ class EKGdata:
                 })
 
             # Falls keine Auffälligkeiten erkannt wurden
-        if len(descriptions) == 0:
+        else:
             descriptions.append({
                 "title": "Keine Auffälligkeiten",
                 "description": "Ihr EKG zeigt keine krankhaften Befunde.",
