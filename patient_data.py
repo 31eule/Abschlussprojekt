@@ -19,6 +19,8 @@ def show_patient_info(person, patient):
     with cols[0]:
         if patient.get("picture_path") and os.path.exists(patient["picture_path"]):
             st.image(Image.open(patient["picture_path"]), width=200)
+        else:
+            st.info("Kein Bild vorhanden.")
     with cols[1]:
         age = person.calc_age()
         max_hr = person.calc_max_heart_rate()
