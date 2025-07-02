@@ -35,11 +35,21 @@ def add_patient_form(json_path):
     gender = st.selectbox("Geschlecht", ["male", "female", "diverse"])
     height = st.number_input("Größe (in cm)", min_value=0, step=1)
     weight = st.number_input("Gewicht (in kg)", min_value=0.0, step=0.1)
-    picture_path = st.text_input("Bildpfad (optional)", placeholder="z. B. data/pictures/p1.jpg")
+    uploaded_file = st.file_uploader("📷 Patientenbild hochladen", type=["jpg", "jpeg", "png"])
 
     if st.button("Hinzufügen"):
         if firstname and lastname:
             patienten = load_patients(json_path)
+
+            # Neues Bild speichern, falls hochgeladen
+            image_path = ""
+            if uploaded_file is not None:
+                image_folder = "data/patient_pictures"
+                os.makedirs(image_folder, exist_ok=True)
+                image_path = os.path.join(image_folder, f"{firstname.lower()}_{lastname.lower()}.jpg")
+                image = Image.open(uploaded_file)
+                image.save(image_path)
+
             new_patient = {
                 "id": str(uuid.uuid4())[:8],
                 "username": f"{firstname.lower()}.{lastname.lower()}",
@@ -51,9 +61,10 @@ def add_patient_form(json_path):
                 "gender": gender,
                 "height": int(height),
                 "weight": float(weight),
-                "picture_path": picture_path,
+                "picture_path": image_path,
                 "ekg_tests": []
             }
+
             patienten.append(new_patient)
             save_patients(json_path, patienten)
             st.success(f"Patient {firstname} {lastname} wurde hinzugefügt!")

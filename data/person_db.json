@@ -63,5 +63,19 @@
                 "result_link": "data/ekg_data/03_Ruhe.txt"
             }
         ]
+    },
+    {
+        "id": "731e351d",
+        "username": "katharina.schroeder",
+        "role": "Patient",
+        "password": "45",
+        "firstname": "Katharina",
+        "lastname": "Schroeder",
+        "date_of_birth": 2001,
+        "gender": "female",
+        "height": 183,
+        "weight": 80.0,
+        "picture_path": "data/pictures\\731e351d.jpg",
+        "ekg_tests": []
     }
 ]
